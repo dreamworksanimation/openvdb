@@ -39,6 +39,7 @@ bool wrapExecution(openvdb::points::PointDataGrid& grid,
     Compiler compiler(opts);
     const std::string code = loadText(codeFileName);
     ast::Tree::ConstPtr syntaxTree = ast::parse(code.c_str(), logger);
+    if (!syntaxTree) return false;
     PointExecutable::Ptr executable = compiler.compile<PointExecutable>(*syntaxTree, logger, data);
     if (!executable) return false;
     executable->setCreateMissing(createMissing);
@@ -60,6 +61,7 @@ bool wrapExecution(openvdb::GridPtrVec& grids,
     const std::string code = loadText(codeFileName);
 
     ast::Tree::ConstPtr syntaxTree = ast::parse(code.c_str(), logger);
+    if (!syntaxTree) return false;
     VolumeExecutable::Ptr executable = compiler.compile<VolumeExecutable>(*syntaxTree, logger, data);
     if (!executable) return false;
     executable->setCreateMissing(createMissing);

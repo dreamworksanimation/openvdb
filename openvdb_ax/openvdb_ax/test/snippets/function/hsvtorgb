@@ -1,0 +1,4 @@
+vec3d@test1 = hsvtorgb({0,0,0});
+vec3d@test2 = hsvtorgb({1,1,1});
+vec3d@test3 = hsvtorgb({0.5,0.5,0.5});
+vec3d@test4 = hsvtorgb({0.3,1.0,10.0});

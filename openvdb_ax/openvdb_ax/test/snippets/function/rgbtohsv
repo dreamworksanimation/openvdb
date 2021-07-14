@@ -1,0 +1,4 @@
+vec3d@test1 = rgbtohsv({0,0,0});
+vec3d@test2 = rgbtohsv({1,1,1});
+vec3d@test3 = rgbtohsv({20.5,40.3,100.1});
+vec3d@test4 = rgbtohsv({-10,1.3,0.25});

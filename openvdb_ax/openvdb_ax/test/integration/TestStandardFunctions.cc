@@ -59,6 +59,7 @@ public:
     CPPUNIT_TEST(fit);
     CPPUNIT_TEST(floormod);
     CPPUNIT_TEST(hash);
+    CPPUNIT_TEST(hsvtorgb);
     CPPUNIT_TEST(identity3);
     CPPUNIT_TEST(identity4);
     CPPUNIT_TEST(intrinsic);
@@ -81,6 +82,7 @@ public:
     CPPUNIT_TEST(radians);
     CPPUNIT_TEST(rand);
     CPPUNIT_TEST(rand32);
+    CPPUNIT_TEST(rgbtohsv);
     CPPUNIT_TEST(sign);
     CPPUNIT_TEST(signbit);
     CPPUNIT_TEST(simplexnoise);
@@ -118,6 +120,7 @@ public:
     void fit();
     void floormod();
     void hash();
+    void hsvtorgb();
     void identity3();
     void identity4();
     void intrinsic();
@@ -140,6 +143,7 @@ public:
     void radians();
     void rand();
     void rand32();
+    void rgbtohsv();
     void sign();
     void signbit();
     void simplexnoise();
@@ -149,8 +153,8 @@ public:
     void tanh();
     void trace();
     void transform();
-    void truncatemod();
     void transpose();
+    void truncatemod();
 };
 
 CPPUNIT_TEST_SUITE_REGISTRATION(TestStandardFunctions);
@@ -168,6 +172,8 @@ inline void testFunctionOptions(unittest_util::AXTestHarness& harness,
     timer.start(std::string("\n") + name + std::string(": Parsing"));
     const ast::Tree::Ptr syntaxTree = ast::parse(code.c_str());
     timer.stop();
+
+    CPPUNIT_ASSERT_MESSAGE(syntaxTree, "Invalid AX passed to testFunctionOptions.");
 
     // @warning  the first execution can take longer due to some llvm startup
     //           so if you're profiling a single function be aware of this.
@@ -654,6 +660,59 @@ TestStandardFunctions::hash()
 }
 
 void
+TestStandardFunctions::hsvtorgb()
+{
+    // HSV to RGB conversion. Taken from OpenEXR's ImathColorAlgo
+    auto convert = [](const openvdb::Vec3d& hsv) {
+        double hue = hsv.x();
+        double sat = hsv.y();
+        double val = hsv.z();
+        openvdb::Vec3d rgb(0.0);
+
+        if (hue == 1) hue = 0;
+        else          hue *= 6;
+
+        int i = int(std::floor(hue));
+        double f = hue - i;
+        double p = val * (1 - sat);
+        double q = val * (1 - (sat * f));
+        double t = val * (1 - (sat * (1 - f)));
+
+        switch (i) {
+            case 0:
+                rgb[0] = val; rgb[1] = t; rgb[2] = p;
+                break;
+            case 1:
+                rgb[0] = q; rgb[1] = val; rgb[2] = p;
+                break;
+            case 2:
+                rgb[0] = p; rgb[1] = val; rgb[2] = t;
+                break;
+            case 3:
+                rgb[0] = p; rgb[1] = q; rgb[2] = val;
+                break;
+            case 4:
+                rgb[0] = t; rgb[1] = p; rgb[2] = val;
+                break;
+            case 5:
+                rgb[0] = val; rgb[1] = p; rgb[2] = q;
+                break;
+        }
+
+        return rgb;
+    };
+
+    const std::vector<openvdb::Vec3d> values{
+        convert({0,0,0}),
+        convert({1,1,1}),
+        convert({0.5,0.5,0.5}),
+        convert({0.3,1.0,10.0})
+    };
+    mHarness.addAttributes<openvdb::Vec3d>(unittest_util::nameSequence("test", 4), values);
+    testFunctionOptions(mHarness, "hsvtorgb");
+}
+
+void
 TestStandardFunctions::identity3()
 {
     mHarness.addAttribute<openvdb::Mat3d>("test", openvdb::Mat3d::identity());
@@ -1116,6 +1175,46 @@ TestStandardFunctions::rand32()
     mHarness.addAttributes<double>({"test0", "test1", "test2", "test3"},
         {expected1, expected1, expected2, expected3});
     testFunctionOptions(mHarness, "rand32");
+}
+
+void
+TestStandardFunctions::rgbtohsv()
+{
+    // RGB to HSV conversion. Taken from OpenEXR's ImathColorAlgo
+    auto convert = [](const openvdb::Vec3d& rgb) {
+        const double& x = rgb.x();
+        const double& y = rgb.y();
+        const double& z = rgb.z();
+
+        double max   = (x > y) ? ((x > z) ? x : z) : ((y > z) ? y : z);
+        double min   = (x < y) ? ((x < z) ? x : z) : ((y < z) ? y : z);
+        double range = max - min;
+        double val   = max;
+        double sat   = 0;
+        double hue   = 0;
+
+        if (max != 0) sat = range / max;
+        if (sat != 0)
+        {
+            double h;
+            if (x == max)       h = (y - z) / range;
+            else if (y == max)  h = 2 + (z - x) / range;
+            else                h = 4 + (x - y) / range;
+            hue = h / 6.;
+            if (hue < 0.) hue += 1.0;
+        }
+
+        return openvdb::Vec3d(hue, sat, val);
+    };
+
+    const std::vector<openvdb::Vec3d> values{
+        convert({0,0,0}),
+        convert({1,1,1}),
+        convert({20.5,40.3,100.1}),
+        convert({-10,1.3,0.25})
+    };
+    mHarness.addAttributes<openvdb::Vec3d>(unittest_util::nameSequence("test", 4), values);
+    testFunctionOptions(mHarness, "rgbtohsv");
 }
 
 void

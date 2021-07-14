@@ -2716,6 +2716,323 @@ inline FunctionGroup::UniquePtr axsort(const FunctionOptions& op)
 ///////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////
 
+// Colour
+
+inline FunctionGroup::UniquePtr axhsvtorgb(const FunctionOptions& op)
+{
+    auto generate =
+        [op](const std::vector<llvm::Value*>& args,
+           llvm::IRBuilder<>& B) -> llvm::Value*
+    {
+        assert(args.size() == 2);
+        llvm::Function* base = B.GetInsertBlock()->getParent();
+
+        std::vector<llvm::Value*> hsv, rgb;
+        arrayUnpack(args[0], rgb, B, /*load*/false); //output
+        arrayUnpack(args[1], hsv, B, /*load*/true);  //input
+
+        llvm::Type* precision = hsv[0]->getType();
+        llvm::Value* zero = llvm::ConstantFP::get(precision, 0.0);
+        llvm::Value* one = llvm::ConstantFP::get(precision, 1.0);
+
+        llvm::BasicBlock* then = llvm::BasicBlock::Create(B.getContext(), "then", base);
+        llvm::BasicBlock* el = llvm::BasicBlock::Create(B.getContext(), "else", base);
+        llvm::BasicBlock* post = llvm::BasicBlock::Create(B.getContext(), "post", base);
+
+        llvm::Value* hueisone = binaryOperator(hsv[0], one, ast::tokens::EQUALSEQUALS, B);
+        B.CreateCondBr(hueisone, then, el);
+
+        llvm::Value* h = insertStaticAlloca(B, precision);
+
+        B.SetInsertPoint(then);
+        {
+            llvm::Value* r = binaryOperator(hsv[0], zero, ast::tokens::MULTIPLY, B); // zero hue
+            B.CreateStore(r, h);
+            B.CreateBr(post);
+        }
+        B.SetInsertPoint(el);
+        {
+            llvm::Value* six = llvm::ConstantFP::get(hsv[0]->getType(), 6.0);
+            llvm::Value* r = binaryOperator(hsv[0], six, ast::tokens::MULTIPLY, B);
+            B.CreateStore(r, h);
+            B.CreateBr(post);
+        }
+
+        B.SetInsertPoint(post);
+
+        h = B.CreateLoad(h);
+        llvm::Value* sat = hsv[1];
+        llvm::Value* val = hsv[2];
+
+        llvm::Value* i = llvm_floor(op)->execute({h}, B);
+        llvm::Value* f =
+            binaryOperator(h, i, ast::tokens::MINUS, B);
+        llvm::Value* p =
+            binaryOperator(val,
+                binaryOperator(one, sat, ast::tokens::MINUS, B),
+                ast::tokens::MULTIPLY, B);
+        llvm::Value* q =
+            binaryOperator(val,
+                binaryOperator(one,
+                    binaryOperator(sat, f,
+                        ast::tokens::MULTIPLY, B),
+                    ast::tokens::MINUS, B),
+                ast::tokens::MULTIPLY, B);
+        llvm::Value* t =
+            binaryOperator(val,
+                binaryOperator(one,
+                    binaryOperator(sat,
+                        binaryOperator(one, f,
+                            ast::tokens::MINUS, B),
+                        ast::tokens::MULTIPLY, B),
+                    ast::tokens::MINUS, B),
+                ast::tokens::MULTIPLY, B);
+
+        // start main switch
+
+        post = llvm::BasicBlock::Create(B.getContext(), "post", base);
+
+        i = arithmeticConversion(i, LLVMType<int64_t>::get(B.getContext()), B);
+
+        for (int64_t j = 0; j <= 5; ++j)
+        {
+            llvm::BasicBlock* then = llvm::BasicBlock::Create(B.getContext(), "then", base);
+            llvm::BasicBlock* el = llvm::BasicBlock::Create(B.getContext(), "else", base);
+
+            llvm::Value* constant = LLVMType<int64_t>::get(B.getContext(), j);
+            llvm::Value* switchv = binaryOperator(i, constant, ast::tokens::EQUALSEQUALS, B);
+            B.CreateCondBr(switchv, then, el);
+
+            B.SetInsertPoint(then);
+            {
+                // The final logic for storing the RGB values
+                if (j == 0) {
+                    B.CreateStore(val, rgb[0]);
+                    B.CreateStore(t, rgb[1]);
+                    B.CreateStore(p, rgb[2]);
+                }
+                else if (j == 1) {
+                    B.CreateStore(q, rgb[0]);
+                    B.CreateStore(val, rgb[1]);
+                    B.CreateStore(p, rgb[2]);
+                }
+                else if (j == 2) {
+                    B.CreateStore(p, rgb[0]);
+                    B.CreateStore(val, rgb[1]);
+                    B.CreateStore(t, rgb[2]);
+                }
+                else if (j == 3) {
+                    B.CreateStore(p, rgb[0]);
+                    B.CreateStore(q, rgb[1]);
+                    B.CreateStore(val, rgb[2]);
+                }
+                else if (j == 4) {
+                    B.CreateStore(t, rgb[0]);
+                    B.CreateStore(p, rgb[1]);
+                    B.CreateStore(val, rgb[2]);
+                }
+                else if (j == 5) {
+                    B.CreateStore(val, rgb[0]);
+                    B.CreateStore(p, rgb[1]);
+                    B.CreateStore(q, rgb[2]);
+                }
+
+                B.CreateBr(post);
+            }
+            // set for next iteration
+            B.SetInsertPoint(el);
+        }
+
+        // Final case (hue > 1 || hue < 0), zero intialize
+        B.CreateStore(zero, rgb[0]);
+        B.CreateStore(zero, rgb[1]);
+        B.CreateStore(zero, rgb[2]);
+        B.CreateBr(post);
+
+        B.SetInsertPoint(post);
+        return B.CreateRetVoid();
+    };
+
+    using HSVtoRGB3D = void(openvdb::math::Vec3<double>*,openvdb::math::Vec3<double>*);
+    using HSVtoRGB3F = void(openvdb::math::Vec3<float>*,openvdb::math::Vec3<float>*);
+
+    return FunctionBuilder("hsvtorgb")
+        .addSignature<HSVtoRGB3D, true>(generate)
+        .addSignature<HSVtoRGB3F, true>(generate)
+        .setArgumentNames({"input"} )
+        .addDependency("floor")
+        .addParameterAttribute(0, llvm::Attribute::NoAlias)
+        .addParameterAttribute(1, llvm::Attribute::ReadOnly)
+        .addFunctionAttribute(llvm::Attribute::NoUnwind)
+        .addFunctionAttribute(llvm::Attribute::AlwaysInline)
+        .setConstantFold(op.mConstantFoldCBindings)
+        .setPreferredImpl(op.mPrioritiseIR ? FunctionBuilder::IR : FunctionBuilder::C)
+        .setDocumentation("Convert HSV color space into RGB color space.")
+        .get();
+}
+
+inline FunctionGroup::UniquePtr axrgbtohsv(const FunctionOptions& op)
+{
+    auto generate =
+        [op](const std::vector<llvm::Value*>& args,
+           llvm::IRBuilder<>& B) -> llvm::Value*
+    {
+        assert(args.size() == 2);
+        llvm::Function* base = B.GetInsertBlock()->getParent();
+        llvm::LLVMContext& C = B.getContext();
+
+        std::vector<llvm::Value*> hsv, rgb;
+        arrayUnpack(args[0], hsv, B, /*load*/false); //output
+        arrayUnpack(args[1], rgb, B, /*load*/true);  //input
+        llvm::Type* precision = rgb[0]->getType();
+        llvm::Value* zero = llvm::ConstantFP::get(precision, 0.0);
+
+
+        llvm::Value* max = axmax(op)->execute({rgb[0], rgb[1]}, B);
+        max = axmax(op)->execute({max, rgb[2]}, B);
+        llvm::Value* min = axmin(op)->execute({rgb[0], rgb[1]}, B);
+        min = axmin(op)->execute({min, rgb[2]}, B);
+
+        llvm::Value* range = binaryOperator(max, min, ast::tokens::MINUS, B);
+
+        B.CreateStore(zero, hsv[0]);
+        B.CreateStore(zero, hsv[1]);
+        B.CreateStore(max, hsv[2]);
+
+        llvm::BasicBlock* then = llvm::BasicBlock::Create(C, "then", base);
+        llvm::BasicBlock* post = llvm::BasicBlock::Create(C, "post", base);
+
+        llvm::Value* maxneqzero = binaryOperator(max, zero, ast::tokens::NOTEQUALS, B);
+        B.CreateCondBr(maxneqzero, then, post);
+
+        B.SetInsertPoint(then);
+        {
+            llvm::Value* sat = binaryOperator(range, max, ast::tokens::DIVIDE, B);
+            B.CreateStore(sat, hsv[1]);
+            B.CreateBr(post);
+        }
+
+        B.SetInsertPoint(post);
+
+        llvm::Value* sat = B.CreateLoad(hsv[1]);
+
+        then = llvm::BasicBlock::Create(C, "then", base);
+        post = llvm::BasicBlock::Create(C, "post", base);
+
+        llvm::Value* satneqzero = binaryOperator(sat, zero, ast::tokens::NOTEQUALS, B);
+
+        B.CreateCondBr(satneqzero, then, post);
+
+        B.SetInsertPoint(then);
+        {
+            then = llvm::BasicBlock::Create(C, "then", base);
+            llvm::BasicBlock* elif1 = llvm::BasicBlock::Create(C, "elif1", base);
+            llvm::BasicBlock* el = llvm::BasicBlock::Create(C, "el", base);
+            llvm::BasicBlock* end = llvm::BasicBlock::Create(C, "end", base);
+
+            llvm::Value* reqmax = binaryOperator(rgb[0], max, ast::tokens::EQUALSEQUALS, B);
+            B.CreateCondBr(reqmax, then, elif1);
+
+            B.SetInsertPoint(then);
+            {
+                llvm::Value* h =
+                    binaryOperator(
+                        binaryOperator(rgb[1], rgb[2], ast::tokens::MINUS, B),
+                        range,
+                        ast::tokens::DIVIDE, B);
+
+                B.CreateStore(h, hsv[0]);
+                B.CreateBr(end);
+            }
+
+            B.SetInsertPoint(elif1);
+            {
+                then = llvm::BasicBlock::Create(C, "then", base);
+
+                llvm::Value* geqmax = binaryOperator(rgb[1], max, ast::tokens::EQUALSEQUALS, B);
+                B.CreateCondBr(geqmax, then, el);
+
+                B.SetInsertPoint(then);
+                {
+                    llvm::Value* two = llvm::ConstantFP::get(precision, 2.0);
+
+                    llvm::Value* h =
+                        binaryOperator(two,
+                            binaryOperator(
+                                binaryOperator(rgb[2], rgb[0], ast::tokens::MINUS, B),
+                                range,
+                                ast::tokens::DIVIDE, B),
+                            ast::tokens::PLUS, B);
+
+                    B.CreateStore(h, hsv[0]);
+                    B.CreateBr(end);
+                }
+            }
+
+            B.SetInsertPoint(el);
+            {
+                llvm::Value* four = llvm::ConstantFP::get(precision, 4.0);
+
+                llvm::Value* h =
+                    binaryOperator(four,
+                        binaryOperator(
+                            binaryOperator(rgb[0], rgb[1], ast::tokens::MINUS, B),
+                            range,
+                            ast::tokens::DIVIDE, B),
+                        ast::tokens::PLUS, B);
+
+                B.CreateStore(h, hsv[0]);
+                B.CreateBr(end);
+            }
+
+            B.SetInsertPoint(end);
+
+            llvm::Value* six = llvm::ConstantFP::get(precision, 6.0);
+
+            llvm::Value* h = B.CreateLoad(hsv[0]);
+            h = binaryOperator(h, six, ast::tokens::DIVIDE, B);
+            B.CreateStore(h, hsv[0]);
+
+            then = llvm::BasicBlock::Create(C, "then", base);
+
+            llvm::Value* hlesszero = binaryOperator(h, zero, ast::tokens::LESSTHAN, B);
+            B.CreateCondBr(hlesszero, then, post);
+
+            B.SetInsertPoint(then);
+            {
+                llvm::Value* one = llvm::ConstantFP::get(precision, 1.0);
+                h = binaryOperator(h, one, ast::tokens::PLUS, B);
+                B.CreateStore(h, hsv[0]);
+                B.CreateBr(post);
+            }
+        }
+
+        B.SetInsertPoint(post);
+        return B.CreateRetVoid();
+    };
+
+    using HSVtoRGB3D = void(openvdb::math::Vec3<double>*,openvdb::math::Vec3<double>*);
+    using HSVtoRGB3F = void(openvdb::math::Vec3<float>*,openvdb::math::Vec3<float>*);
+
+    return FunctionBuilder("rgbtohsv")
+        .addSignature<HSVtoRGB3D, true>(generate)
+        .addSignature<HSVtoRGB3F, true>(generate)
+        .setArgumentNames({"input"} )
+        .addDependency("max")
+        .addDependency("min")
+        .addParameterAttribute(0, llvm::Attribute::NoAlias)
+        .addParameterAttribute(1, llvm::Attribute::ReadOnly)
+        .addFunctionAttribute(llvm::Attribute::NoUnwind)
+        .addFunctionAttribute(llvm::Attribute::AlwaysInline)
+        .setConstantFold(op.mConstantFoldCBindings)
+        .setPreferredImpl(op.mPrioritiseIR ? FunctionBuilder::IR : FunctionBuilder::C)
+        .setDocumentation("Convert RGB color space into HSV color space.")
+        .get();
+}
+
+///////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////
+
 // Custom
 
 inline FunctionGroup::UniquePtr ax_external(const FunctionOptions& op)
@@ -2890,6 +3207,7 @@ void insertStandardFunctions(FunctionRegistry& registry,
     add("truncatemod", axtruncatemod);
 
     // matrix math
+
     add("adjoint", axadjoint);
     add("cofactor", axcofactor);
     add("determinant", axdeterminant);
@@ -2937,6 +3255,11 @@ void insertStandardFunctions(FunctionRegistry& registry,
     add("argsort", axargsort);
     add("sort", axsort);
     add("print", axprint);
+
+    // colour
+
+    add("hsvtorgb", axhsvtorgb);
+    add("rgbtohsv", axrgbtohsv);
 
     // custom
 
