@@ -435,6 +435,8 @@ TEST_F(TestTreeIterators, testModifyValue)
         //tree.cbeginValueOn().modifyValue(Local::negate);
     }
     {
+        // @note  StringTree types as native types are deprecated, but we can
+        //   still test tool functionality with them
         typedef openvdb::tree::Tree4<std::string, DIM2, DIM1, DIM0>::Type StringTree323f;
 
         StringTree323f tree(/*background=*/"");

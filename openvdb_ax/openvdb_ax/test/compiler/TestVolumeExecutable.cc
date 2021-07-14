@@ -575,6 +575,7 @@ TestVolumeExecutable::testActiveTileStreaming()
 
     // test spatially varying voxelization for string grids which use specialized implementations
     {
+OPENVDB_NO_DEPRECATION_WARNING_BEGIN
         openvdb::StringGrid grid;
         grid.setName("test");
         openvdb::StringTree& tree = grid.tree();
@@ -625,6 +626,7 @@ TestVolumeExecutable::testActiveTileStreaming()
             if (coord.x() == 0) CPPUNIT_ASSERT_EQUAL(*it, std::string("bar"));
             else                CPPUNIT_ASSERT_EQUAL(*it, std::string("foo"));
         });
+OPENVDB_NO_DEPRECATION_WARNING_END
     }
 
     // test streaming with an OFF iterator (no streaming behaviour) and an ALL iterator (streaming behaviour for ON values only)

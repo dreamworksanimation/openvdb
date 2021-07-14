@@ -25,7 +25,6 @@ using FloatTree    = tree::Tree4<float,       5, 4, 3>::Type;
 using Int32Tree    = tree::Tree4<int32_t,     5, 4, 3>::Type;
 using Int64Tree    = tree::Tree4<int64_t,     5, 4, 3>::Type;
 using MaskTree     = tree::Tree4<ValueMask,   5, 4, 3>::Type;
-using StringTree   = tree::Tree4<std::string, 5, 4, 3>::Type;
 using UInt32Tree   = tree::Tree4<uint32_t,    5, 4, 3>::Type;
 using Vec2DTree    = tree::Tree4<Vec2d,       5, 4, 3>::Type;
 using Vec2ITree    = tree::Tree4<Vec2i,       5, 4, 3>::Type;
@@ -46,7 +45,6 @@ using FloatGrid    = Grid<FloatTree>;
 using Int32Grid    = Grid<Int32Tree>;
 using Int64Grid    = Grid<Int64Tree>;
 using MaskGrid     = Grid<MaskTree>;
-using StringGrid   = Grid<StringTree>;
 using Vec3DGrid    = Grid<Vec3DTree>;
 using Vec3IGrid    = Grid<Vec3ITree>;
 using Vec3SGrid    = Grid<Vec3STree>;
@@ -61,6 +59,18 @@ OPENVDB_API void initialize();
 
 /// Global deregistration of basic types
 OPENVDB_API void uninitialize();
+
+
+// Deprecated types
+/// @note  Customizing the type of a VDB tree to an arbitrary class is still
+///  supported however std::string Trees will, in the future, no longer be
+///  provided as a native type by OpenVDB.
+using StringTree OPENVDB_DEPRECATED_MESSAGE("Support for std::string Trees "
+    "as a native type will be dropped in future versions. Please feedback with any concerns.")
+    = tree::Tree4<std::string, 5, 4, 3>::Type;
+using StringGrid OPENVDB_DEPRECATED_MESSAGE("Support for std::string Grids "
+    "as a native type will be dropped in future versions. Please feedback with any concerns.")
+    = Grid<tree::Tree4<std::string, 5, 4, 3>::Type>;
 
 } // namespace OPENVDB_VERSION_NAME
 } // namespace openvdb

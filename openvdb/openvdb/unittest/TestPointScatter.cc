@@ -81,14 +81,6 @@ TEST_F(TestPointScatter, testUniformPointScatter)
         EXPECT_EQ(total, pointCount(points->tree()));
     }
     {
-        StringGrid grid;
-        grid.sparseFill(boxBounds, "", /*active*/true);
-        auto points = points::uniformPointScatter(grid, total);
-        EXPECT_EQ(Index32(8), points->tree().leafCount());
-        EXPECT_EQ(Index64(27), points->activeVoxelCount());
-        EXPECT_EQ(total, pointCount(points->tree()));
-    }
-    {
         Vec3DGrid grid;
         grid.sparseFill(boxBounds, Vec3d(), /*active*/true);
         auto points = points::uniformPointScatter(grid, total);
@@ -309,14 +301,6 @@ TEST_F(TestPointScatter, testDenseUniformPointScatter)
     {
         MaskGrid grid;
         grid.sparseFill(boxBounds, /*maskBuffer*/true);
-        auto points = points::denseUniformPointScatter(grid, pointsPerVoxel);
-        EXPECT_EQ(Index32(8), points->tree().leafCount());
-        EXPECT_EQ(Index64(27), points->activeVoxelCount());
-        EXPECT_EQ(Index64(pointsPerVoxel * 27), pointCount(points->tree()));
-    }
-    {
-        StringGrid grid;
-        grid.sparseFill(boxBounds, "", /*active*/true);
         auto points = points::denseUniformPointScatter(grid, pointsPerVoxel);
         EXPECT_EQ(Index32(8), points->tree().leafCount());
         EXPECT_EQ(Index64(27), points->activeVoxelCount());

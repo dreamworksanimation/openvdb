@@ -552,44 +552,6 @@ evalMinMaxTest<openvdb::BoolTree>()
     EXPECT_EQ(true, maxVal);
 }
 
-/// Specialization for string trees
-template<>
-void
-evalMinMaxTest<openvdb::StringTree>()
-{
-    const std::string
-        echidna("echidna"), loris("loris"), pangolin("pangolin");
-
-    openvdb::StringTree tree(/*background=*/loris);
-
-    // No set voxels (defaults to min = max = zero)
-    std::string minVal, maxVal;
-    tree.evalMinMax(minVal, maxVal);
-    EXPECT_EQ(std::string(), minVal);
-    EXPECT_EQ(std::string(), maxVal);
-
-    // Only one set voxel
-    tree.setValue(openvdb::Coord(0, 0, 0), pangolin);
-    minVal.clear(); maxVal.clear();
-    tree.evalMinMax(minVal, maxVal);
-    EXPECT_EQ(pangolin, minVal);
-    EXPECT_EQ(pangolin, maxVal);
-
-    // Multiple set voxels, single value
-    tree.setValue(openvdb::Coord(-10, -10, -10), pangolin);
-    minVal.clear(); maxVal.clear();
-    tree.evalMinMax(minVal, maxVal);
-    EXPECT_EQ(pangolin, minVal);
-    EXPECT_EQ(pangolin, maxVal);
-
-    // Multiple set voxels, multiple values
-    tree.setValue(openvdb::Coord(10, 10, 10), echidna);
-    minVal.clear(); maxVal.clear();
-    tree.evalMinMax(minVal, maxVal);
-    EXPECT_EQ(echidna, minVal);
-    EXPECT_EQ(pangolin, maxVal);
-}
-
 /// Specialization for Coord trees
 template<>
 void
@@ -632,7 +594,6 @@ TEST_F(TestTree, testEvalMinMax)
     evalMinMaxTest<openvdb::Int32Tree>();
     evalMinMaxTest<openvdb::Vec3STree>();
     evalMinMaxTest<openvdb::Vec2ITree>();
-    evalMinMaxTest<openvdb::StringTree>();
     evalMinMaxTest<openvdb::Coord>();
 }
 
