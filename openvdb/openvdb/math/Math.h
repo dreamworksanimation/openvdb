@@ -319,10 +319,11 @@ inline long double Abs(long double x) { return std::fabs(x); }
 inline uint32_t Abs(uint32_t i) { return i; }
 inline uint64_t Abs(uint64_t i) { return i; }
 inline bool Abs(bool b) { return b; }
-// On OSX size_t and uint64_t are different types
-#if defined(__APPLE__) || defined(MACOSX)
-inline size_t Abs(size_t i) { return i; }
-#endif
+// On systems like macOS and FreeBSD, size_t and uint64_t are different types
+template <typename T, typename std::enable_if<
+        std::is_same<T, size_t>::value
+        >::type* = nullptr>
+inline T Abs(T i) { return i; }
 //@}
 
 
