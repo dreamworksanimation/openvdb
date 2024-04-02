@@ -1,0 +1,17 @@
+// Copyright Contributors to the OpenVDB Project
+// SPDX-License-Identifier: MPL-2.0
+
+// Automatically generated C++ code. Do not edit
+#pragma once
+#include <cstdint>
+
+struct SpirVShaderBytecode
+{
+    const uint32_t* code;
+    const uint32_t codeSize;
+
+    const uint32_t* data() const {return code;}
+    const uint32_t size() const {return codeSize;}
+};
+
+${extern_shader_decls}
