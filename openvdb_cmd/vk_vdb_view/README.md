@@ -59,7 +59,7 @@ In addition to the dependencies of the surrounding OpenVDB library, Vulkan VDB V
 * GLFW 3
 #### Runtime Dependencies 
 * Up to date Vulkan loader. GLFW will require certain instance-level extensions depending on the platform, and your Vulkan installation must support them for Vulkan VDB View to work. 
-* Vulkan compatible GPU with up to date driver. Additionally your device must support:
+* Vulkan compatible GPU with up to date driver supporting Vulkan 1.3. Additionally your device must support:
     * **Extensions:**
         * VK_KHR_swapchain: _required_
         * VK_EXT_vertex_input_dynamic_state: _required_
@@ -73,15 +73,10 @@ In addition to the dependencies of the surrounding OpenVDB library, Vulkan VDB V
         * **VkPhysicalDeviceVertexInputDynamicStateFeaturesEXT:**
             * vertexInputDynamicState: _required_
         * **VkPhysicalDeviceVulkan12Features:**
-            * separateDepthStencilLayouts: _required_
             * scalarBlockLayout: _required_
             * shaderInt8: _required_
             * storageBuffer8BitAccess: _required_
             * uniformAndStorageBuffer8BitAccess: _required_
-        * **VkPhysicalDeviceVulkan13Features:**
-            * synchronization2: _required_
-            * dynamicRendering: _required_
-            * maintenance4: _required_
     * **Physical Device Properties:**
         * pointSizeRange ⊇ [1, 4]
     * 1 Queue supporting graphics, compute, transfer, and presentation operations
