@@ -170,7 +170,9 @@ typedef unsigned long long uint64_t;
 
 #define NANOVDB_ASSERT(x)
 
+#ifndef UINT64_C
 #define UINT64_C(x)  (x ## ULL)
+#endif
 
 #else // !__CUDACC_RTC__
 

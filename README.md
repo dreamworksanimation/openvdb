@@ -35,6 +35,8 @@ Mozilla Foundation.
 The trademarks of any contributor to this project may not be used in
 association with the project without the contributor's express permission.
 
+NOTE: OpenVDB is in the process of changing its license from [Mozilla Public License Version 2.0](https://www.mozilla.org/MPL/2.0/) to [Apache License, Version 2.0](https://www.apache.org/licenses/LICENSE-2.0)! Please see the file RE-LICENSE_NOTE.txt for more details.
+
 ### Contributing
 
 OpenVDB welcomes contributions to the OpenVDB project. Please refer to the
